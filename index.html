@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Where are you, really? — A check-in tool</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #F6F3EE;
+    color: #2C2C2A;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .brand { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: #8B8878; margin: 0 0 2rem; text-align: center; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 2rem; border-bottom: 1px solid #E5E0D6; }
+  .tab { flex: 1; padding: 12px 16px; font-size: 14px; background: none; border: none; cursor: pointer; color: #8B8878; font-family: inherit; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+  .tab.active { color: #2C2C2A; border-bottom-color: #2C2C2A; font-weight: 500; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .intro-title { font-size: 26px; font-weight: 500; margin: 0 0 12px; line-height: 1.3; }
+  .intro-body { font-size: 16px; line-height: 1.7; color: #5F5E5A; margin: 0 0 2rem; }
+  .question { font-size: 20px; font-weight: 500; margin: 0 0 6px; }
+  .sub { font-size: 14px; color: #8B8878; margin: 0 0 24px; }
+  .progress { display: flex; gap: 4px; margin-bottom: 2rem; }
+  .dot { flex: 1; height: 3px; border-radius: 2px; background: #E5E0D6; transition: background 0.2s; }
+  .dot.done { background: #2C2C2A; }
+  .options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; }
+  .option {
+    background: #FFFFFF; border: 1px solid #E5E0D6; border-radius: 10px;
+    padding: 16px 18px; text-align: left; font-size: 15px; line-height: 1.5;
+    cursor: pointer; color: #2C2C2A; transition: all 0.15s; font-family: inherit;
+  }
+  .option:hover { border-color: #2C2C2A; }
+  .option.selected { border: 2px solid #2C2C2A; padding: 15px 17px; background: #FAF8F3; }
+  .nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 1.5rem; }
+  .btn {
+    padding: 12px 22px; border-radius: 10px; border: 1px solid #2C2C2A;
+    background: transparent; font-size: 14px; cursor: pointer; color: #2C2C2A; font-family: inherit;
+    font-weight: 500; transition: all 0.15s;
+  }
+  .btn:hover { background: #F0ECE2; }
+  .btn.primary { background: #2C2C2A; color: #FAF8F3; }
+  .btn.primary:hover { background: #444441; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn:disabled:hover { background: transparent; }
+  .result-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: #8B8878; margin: 0 0 8px; font-weight: 500; }
+  .result-name { font-size: 28px; font-weight: 500; margin: 0 0 1.5rem; line-height: 1.2; }
+  .card { background: #FFFFFF; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 12px; border: 1px solid #E5E0D6; }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #8B8878; margin: 0 0 8px; font-weight: 500; }
+  .card-body { font-size: 16px; line-height: 1.65; margin: 0; color: #2C2C2A; }
+  .actions-section { margin-top: 2rem; }
+  .action {
+    background: #FFFFFF; border: 1px solid #E5E0D6; border-radius: 10px;
+    padding: 14px 18px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s;
+  }
+  .action:hover { border-color: #2C2C2A; }
+  .action.picked { border: 2px solid #2C2C2A; padding: 13px 17px; background: #FAF8F3; }
+  .action-time { font-size: 11px; font-weight: 500; color: #8B8878; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .action-text { font-size: 15px; line-height: 1.5; margin: 0; }
+  .reflection {
+    margin-top: 2rem; padding: 1.5rem; border-radius: 12px;
+    background: #FFFFFF; border: 1px solid #E5E0D6; display: none;
+  }
+  .reflection.show { display: block; animation: fadeIn 0.3s ease; }
+  .reflection-q { font-size: 15px; font-weight: 500; margin: 0 0 14px; }
+  .reflection-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .reflection-opt {
+    padding: 10px 16px; border-radius: 8px; border: 1px solid #E5E0D6;
+    background: #FAF8F3; font-size: 14px; cursor: pointer; font-family: inherit; color: #2C2C2A;
+    transition: all 0.15s;
+  }
+  .reflection-opt:hover { border-color: #2C2C2A; }
+  .reflection-opt.picked { background: #2C2C2A; color: #FAF8F3; border-color: #2C2C2A; }
+  .reflection-done { display: none; margin-top: 18px; padding-top: 18px; border-top: 1px solid #E5E0D6; }
+  .reflection-msg { font-size: 14px; line-height: 1.6; margin: 0 0 14px; color: #5F5E5A; }
+  .history-empty { text-align: center; padding: 3rem 1rem; color: #8B8878; }
+  .history-empty p { font-size: 15px; line-height: 1.6; margin: 0 0 4px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+  .stat { background: #FFFFFF; border-radius: 10px; padding: 1rem 1.25rem; border: 1px solid #E5E0D6; }
+  .stat-label { font-size: 12px; color: #8B8878; margin: 0 0 4px; }
+  .stat-value { font-size: 26px; font-weight: 500; margin: 0; }
+  .pattern-label { font-size: 13px; font-weight: 500; margin: 2rem 0 14px; text-transform: uppercase; letter-spacing: 1px; color: #8B8878; }
+  .pattern { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 6px; background: #FFFFFF; border-radius: 10px; border: 1px solid #E5E0D6; }
+  .pattern-name { font-size: 14px; flex: 1.2; }
+  .pattern-bar { height: 6px; background: #E5E0D6; border-radius: 3px; overflow: hidden; flex: 2; }
+  .pattern-fill { height: 100%; background: #2C2C2A; border-radius: 3px; }
+  .pattern-count { font-size: 13px; color: #8B8878; min-width: 20px; text-align: right; }
+  .log-entry { padding: 14px 0; border-bottom: 1px solid #E5E0D6; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 12px; }
+  .log-state { font-size: 15px; font-weight: 500; }
+  .log-when { font-size: 12px; color: #8B8878; white-space: nowrap; }
+  .log-outcome { font-size: 13px; color: #5F5E5A; margin: 0; }
+  .log-outcome.none { color: #B4B2A9; font-style: italic; }
+  .insight { background: #F0ECE2; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 2rem; border-left: 3px solid #2C2C2A; }
+  .insight p { font-size: 14px; line-height: 1.6; margin: 0; color: #2C2C2A; }
+  .clear { margin-top: 2.5rem; text-align: center; }
+  .clear button { background: none; border: none; color: #8B8878; font-size: 13px; text-decoration: underline; cursor: pointer; font-family: inherit; }
+  .footer-note { margin-top: 3rem; text-align: center; font-size: 12px; color: #B4B2A9; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="brand">The check-in</p>
+
+  <div class="tabs">
+    <button class="tab active" data-view="checkin" onclick="rwTab('checkin')">Check in</button>
+    <button class="tab" data-view="history" onclick="rwTab('history')">Your patterns</button>
+  </div>
+
+  <div class="view active" data-view="checkin">
+
+    <div class="step active" data-step="intro">
+      <p class="intro-title">Where are you, really?</p>
+      <p class="intro-body">Three quick check-ins. Body, thoughts, pull. Then you'll see what state you're in — and what to do from here. Something small, something now.</p>
+      <button class="btn primary" onclick="rwGo(1)">Start check-in</button>
+    </div>
+
+    <div class="step" data-step="1">
+      <div class="progress"><div class="dot done"></div><div class="dot"></div><div class="dot"></div></div>
+      <p class="question">What's your body doing?</p>
+      <p class="sub">Drop in. What's the felt sense right now?</p>
+      <div class="options" data-q="body">
+        <button class="option" data-val="flooded">Buzzing, tight, heart racing, can't think straight</button>
+        <button class="option" data-val="activated">Wired, restless, jaw clenched, a bit sick, on edge</button>
+        <button class="option" data-val="flat">Heavy, tired, foggy, moving through treacle</button>
+        <button class="option" data-val="numb">Numb, disconnected, a bit dead inside</button>
+        <button class="option" data-val="neutral">Honestly, fine. Neutral. Maybe even okay.</button>
+      </div>
+      <div class="nav"><button class="btn" onclick="rwGo(0)">Back</button><button class="btn primary" onclick="rwGo(2)" data-next="1" disabled>Next</button></div>
+    </div>
+
+    <div class="step" data-step="2">
+      <div class="progress"><div class="dot done"></div><div class="dot done"></div><div class="dot"></div></div>
+      <p class="question">What do your thoughts sound like?</p>
+      <p class="sub">Whichever rings loudest right now.</p>
+      <div class="options" data-q="thoughts">
+        <button class="option" data-val="spiral">Racing, spiralling, catastrophising, can't switch off</button>
+        <button class="option" data-val="harsh">"I'm useless." "I'll never get this right." Mean, critical.</button>
+        <button class="option" data-val="binary">"I've ruined it now, might as well write today off."</button>
+        <button class="option" data-val="avoidant">"I'll start Monday." "Not today." "Can't be bothered."</button>
+        <button class="option" data-val="quiet">Pretty quiet. A bit meh but not loud.</button>
+      </div>
+      <div class="nav"><button class="btn" onclick="rwGo(1)">Back</button><button class="btn primary" onclick="rwGo(3)" data-next="2" disabled>Next</button></div>
+    </div>
+
+    <div class="step" data-step="3">
+      <div class="progress"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div></div>
+      <p class="question">What's the pull?</p>
+      <p class="sub">If nothing stopped you, what would you do next?</p>
+      <div class="options" data-q="urge">
+        <button class="option" data-val="escape">Eat. Scroll. Drink. Anything to get out of this.</button>
+        <button class="option" data-val="shutdown">Bed. Hide. Cancel everything. Disappear.</button>
+        <button class="option" data-val="fix">Restart everything. New plan. Clean slate. Now.</button>
+        <button class="option" data-val="delay">Put it off. Scroll a bit. Start later.</button>
+        <button class="option" data-val="act">Honestly? I could just get on with it.</button>
+      </div>
+      <div class="nav"><button class="btn" onclick="rwGo(2)">Back</button><button class="btn primary" onclick="rwShowResult()" data-next="3" disabled>See where you are</button></div>
+    </div>
+
+    <div class="step" data-step="result">
+      <p class="result-label">Where you are right now</p>
+      <p class="result-name" id="result-name"></p>
+      <div class="card"><p class="card-label">What's happening</p><p class="card-body" id="result-what"></p></div>
+      <div class="card"><p class="card-label">What it's not</p><p class="card-body" id="result-not"></p></div>
+      <div class="actions-section">
+        <p class="card-label" style="margin-bottom: 12px;">Pick one — tap to choose</p>
+        <div id="result-actions"></div>
+      </div>
+      <div class="reflection" id="reflection">
+        <p class="reflection-q">Come back when you've tried it. How did it land?</p>
+        <div class="reflection-opts">
+          <button class="reflection-opt" data-outcome="shifted" onclick="rwReflect('shifted')">Something shifted</button>
+          <button class="reflection-opt" data-outcome="helped" onclick="rwReflect('helped')">A bit better</button>
+          <button class="reflection-opt" data-outcome="stuck" onclick="rwReflect('stuck')">Still stuck</button>
+        </div>
+        <div class="reflection-done" id="reflection-done">
+          <p class="reflection-msg" id="reflection-msg"></p>
+          <button class="btn" onclick="rwReset()">New check-in</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="view" data-view="history">
+    <div id="history-content"></div>
+  </div>
+
+  <p class="footer-note">Your check-ins save on this device only.<br>No accounts, no tracking, nothing shared.</p>
+
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'rw_checkins_v1';
+  const state = { body: null, thoughts: null, urge: null, currentResult: null, currentEntryId: null };
+
+  const results = {
+    flooded: {
+      name: "Flooded",
+      what: "Your nervous system is in overdrive. There's too much going on inside for you to think your way out. Your body is asking for safety, not a strategy.",
+      not: "This isn't weakness. It's not a reason to write off the day. Flooded states pass. Don't make decisions about food, the week, or yourself while you're here.",
+      actions: [
+        { time: "60 seconds", text: "Cold water on your wrists and the back of your neck. Breathe out longer than you breathe in, five times." },
+        { time: "5 minutes", text: "Step outside, even just to the doorway. Feet on the ground. Name five things you can see, out loud." },
+        { time: "Next step", text: "No big decisions until this passes. Eat something simple you already know works. Revisit tomorrow." }
+      ]
+    },
+    activated: {
+      name: "Dysregulated — anxious",
+      what: "You're revved up. A part of you is trying to protect you by scanning, planning, worrying. It feels like urgency, but it's anxiety wearing urgency's clothes.",
+      not: "This isn't a signal something's actually wrong. It's not a reason to overhaul the plan. The worst decisions get made from here.",
+      actions: [
+        { time: "60 seconds", text: "Hand on chest, hand on belly. Slow breath out through the mouth, like fogging a mirror. Until the shoulders drop." },
+        { time: "5 minutes", text: "Walk. Even up and down the hallway. Move the energy through, instead of letting it loop in your head." },
+        { time: "Next step", text: "The next right thing, not the next big thing. One meal. One walk. Not a new plan." }
+      ]
+    },
+    shutdown: {
+      name: "Shutdown — flat",
+      what: "Your system has pulled the shutters down. This is the freeze end of the scale, not the fire. A part is protecting you by making everything feel pointless or too heavy.",
+      not: "This isn't laziness. It's not proof you don't want it enough. Flat states are physiological, not a character flaw.",
+      actions: [
+        { time: "60 seconds", text: "Stand up. Shake your hands out. Hum, out loud, for thirty seconds. Feels silly, works on the vagus nerve." },
+        { time: "5 minutes", text: "Daylight, even through a window. Glass of water. Change one thing — open a curtain, make the bed." },
+        { time: "Next step", text: "Lower the bar. Today's win is showing up, not smashing it. One small promise, kept." }
+      ]
+    },
+    perfectionist: {
+      name: "All-or-nothing freeze",
+      what: "A part of you has decided that if you can't do it properly, it's not worth doing at all. So you're doing nothing. The binary is the trap, not the day.",
+      not: "This isn't laziness or lack of discipline. It's a perfectionist part trying to protect you from failing. The cost is that it also stops you starting.",
+      actions: [
+        { time: "60 seconds", text: "Name it out loud: \"I'm in all-or-nothing thinking.\" The naming breaks the spell a little." },
+        { time: "5 minutes", text: "The smallest possible version of the thing. Not the 80% version — the 10% version. Do that." },
+        { time: "Next step", text: "The day isn't ruined. It's 3pm, not the apocalypse. Decide what a \"good enough\" rest of the day looks like. Do that." }
+      ]
+    },
+    avoidant: {
+      name: "Regulated but avoidant",
+      what: "Here's the honest one. Not flooded, not flat. You just don't feel like it. A part is waiting for motivation to show up like a taxi. It won't.",
+      not: "You don't need to regulate out of this. You're fine. You're capable. You just haven't decided yet.",
+      actions: [
+        { time: "60 seconds", text: "Ask: what would the version of me I want to be do in the next ten minutes? Then do that, badly." },
+        { time: "5 minutes", text: "Action first, feeling second. Start for five minutes with zero expectation of enjoying it. Motivation shows up after." },
+        { time: "Next step", text: "This is the state where identity gets built. Not when it's easy. Now. Prove to yourself who you are." }
+      ]
+    }
+  };
+
+  function diagnose(s) {
+    if (s.body === "flooded") return "flooded";
+    if (s.body === "activated" || s.thoughts === "spiral") return "activated";
+    if (s.body === "numb" || (s.body === "flat" && s.urge === "shutdown")) return "shutdown";
+    if (s.thoughts === "binary" || s.urge === "fix") return "perfectionist";
+    if (s.urge === "escape") return "activated";
+    if ((s.body === "flat" || s.body === "neutral") && (s.urge === "delay" || s.urge === "act" || s.thoughts === "avoidant" || s.thoughts === "quiet")) return "avoidant";
+    if (s.thoughts === "harsh") return "shutdown";
+    return "avoidant";
+  }
+
+  function loadEntries() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveEntries(entries) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); } catch(e) {}
+  }
+  function saveCheckin(resultKey) {
+    const entries = loadEntries();
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+    entries.unshift({ id: id, state: resultKey, ts: Date.now(), outcome: null });
+    saveEntries(entries);
+    return id;
+  }
+  function updateOutcome(id, outcome) {
+    const entries = loadEntries();
+    const entry = entries.find(e => e.id === id);
+    if (entry) { entry.outcome = outcome; saveEntries(entries); }
+  }
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    const mins = Math.round(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.round(hrs / 24);
+    if (days < 7) return days + 'd ago';
+    return Math.round(days / 7) + 'w ago';
+  }
+
+  function renderHistory() {
+    const entries = loadEntries();
+    const el = document.getElementById('history-content');
+    if (!entries.length) {
+      el.innerHTML = '<div class="history-empty"><p>No check-ins yet.</p><p>Once you\'ve done a few, you\'ll see your patterns here.</p></div>';
+      return;
+    }
+    const counts = {};
+    entries.forEach(e => counts[e.state] = (counts[e.state] || 0) + 1);
+    const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+    const max = sorted[0][1];
+    const weekAgo = Date.now() - 7*24*60*60*1000;
+    const thisWeek = entries.filter(e => e.ts > weekAgo).length;
+    const withOutcome = entries.filter(e => e.outcome);
+    const shifted = withOutcome.filter(e => e.outcome === 'shifted' || e.outcome === 'helped').length;
+    const shiftPct = withOutcome.length ? Math.round((shifted / withOutcome.length) * 100) : null;
+
+    let insight = '';
+    if (entries.length >= 3) {
+      const topPct = Math.round((sorted[0][1] / entries.length) * 100);
+      if (topPct >= 40) {
+        insight = '<div class="insight"><p>You land in <strong>' + results[sorted[0][0]].name + '</strong> ' + topPct + '% of the time. There\'s a pattern there — worth bringing to a coaching session.</p></div>';
+      }
+    }
+
+    let html = insight;
+    html += '<div class="stat-row">';
+    html += '<div class="stat"><p class="stat-label">Total check-ins</p><p class="stat-value">' + entries.length + '</p></div>';
+    html += '<div class="stat"><p class="stat-label">This week</p><p class="stat-value">' + thisWeek + '</p></div>';
+    if (shiftPct !== null) {
+      html += '<div class="stat"><p class="stat-label">Shifted or helped</p><p class="stat-value">' + shiftPct + '%</p></div>';
+    }
+    html += '</div>';
+
+    html += '<p class="pattern-label">States you land in most</p>';
+    sorted.forEach(([key, count]) => {
+      const pct = Math.round((count / max) * 100);
+      html += '<div class="pattern"><span class="pattern-name">' + results[key].name + '</span><div class="pattern-bar"><div class="pattern-fill" style="width:' + pct + '%"></div></div><span class="pattern-count">' + count + '</span></div>';
+    });
+
+    html += '<p class="pattern-label">Recent check-ins</p>';
+    entries.slice(0, 12).forEach(e => {
+      html += '<div class="log-entry"><div class="log-top"><span class="log-state">' + results[e.state].name + '</span><span class="log-when">' + timeAgo(e.ts) + '</span></div>';
+      if (e.outcome) {
+        const label = e.outcome === 'shifted' ? 'Something shifted' : e.outcome === 'helped' ? 'A bit better' : 'Still stuck';
+        html += '<p class="log-outcome">' + label + '</p>';
+      } else {
+        html += '<p class="log-outcome none">no reflection logged</p>';
+      }
+      html += '</div>';
+    });
+
+    html += '<div class="clear"><button onclick="rwClear()">Clear all check-ins</button></div>';
+
+    el.innerHTML = html;
+  }
+
+  window.rwTab = function(view) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-view') === view));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.getAttribute('data-view') === view));
+    if (view === 'history') renderHistory();
+  };
+
+  window.rwGo = function(step) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    if (step === 0) document.querySelector('[data-step="intro"]').classList.add('active');
+    else document.querySelector('[data-step="'+step+'"]').classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  window.rwShowResult = function() {
+    const key = diagnose(state);
+    state.currentResult = key;
+    const r = results[key];
+    document.getElementById('result-name').textContent = r.name;
+    document.getElementById('result-what').textContent = r.what;
+    document.getElementById('result-not').textContent = r.not;
+    const actionsEl = document.getElementById('result-actions');
+    actionsEl.innerHTML = '';
+    r.actions.forEach((a, i) => {
+      const div = document.createElement('div');
+      div.className = 'action';
+      div.setAttribute('data-idx', i);
+      div.innerHTML = '<p class="action-time">'+a.time+'</p><p class="action-text">'+a.text+'</p>';
+      div.addEventListener('click', () => {
+        document.querySelectorAll('.action').forEach(x => x.classList.remove('picked'));
+        div.classList.add('picked');
+        document.getElementById('reflection').classList.add('show');
+      });
+      actionsEl.appendChild(div);
+    });
+    document.getElementById('reflection').classList.remove('show');
+    document.getElementById('reflection-done').style.display = 'none';
+    document.querySelectorAll('.reflection-opt').forEach(o => o.classList.remove('picked'));
+
+    state.currentEntryId = saveCheckin(key);
+
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.querySelector('[data-step="result"]').classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  window.rwReflect = function(outcome) {
+    document.querySelectorAll('.reflection-opt').forEach(o => o.classList.toggle('picked', o.getAttribute('data-outcome') === outcome));
+    if (state.currentEntryId) updateOutcome(state.currentEntryId, outcome);
+    const msgs = {
+      shifted: "That's the work. You interrupted the slide. Log it — your nervous system is learning.",
+      helped: "Something moved. That counts. Small shifts stack.",
+      stuck: "Okay. Sometimes the state needs more time. Be kind. Try again in an hour, or try a different action."
+    };
+    document.getElementById('reflection-msg').textContent = msgs[outcome];
+    document.getElementById('reflection-done').style.display = 'block';
+  };
+
+  window.rwReset = function() {
+    state.body = null; state.thoughts = null; state.urge = null; state.currentResult = null; state.currentEntryId = null;
+    document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+    document.querySelectorAll('[data-next]').forEach(b => b.disabled = true);
+    rwGo(0);
+  };
+
+  window.rwClear = function() {
+    if (confirm('Clear all your check-ins? This can\'t be undone.')) {
+      saveEntries([]);
+      renderHistory();
+    }
+  };
+
+  document.querySelectorAll('.options').forEach(group => {
+    const q = group.getAttribute('data-q');
+    group.querySelectorAll('.option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        group.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        state[q] = opt.getAttribute('data-val');
+        const stepNum = q === 'body' ? 1 : q === 'thoughts' ? 2 : 3;
+        const btn = document.querySelector('[data-next="'+stepNum+'"]');
+        if (btn) btn.disabled = false;
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
